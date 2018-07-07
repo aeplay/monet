@@ -1,6 +1,6 @@
 {
   "name": "monet",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A simple renderer",
   "main": "index.js",
   "scripts": {

@@ -66,6 +66,10 @@ export default class Monet extends React.Component {
         requestAnimationFrame(() => this.renderFrame())
     }
 
+    shouldComponentUpdate(nextProps) {
+        return this.props.width !== nextProps.width || this.props.height !== nextProps.height
+    }
+
     renderFrame() {
         const gl = this.gl;
         const instancing = this.instancing;
