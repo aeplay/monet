@@ -17,6 +17,7 @@ interface ShaderInfo {
 }
 
 export interface LayerSpec {
+    decal?: boolean,
     batches: {
         mesh: Mesh,
         instances: Float32Array,
@@ -132,6 +133,15 @@ export default class Monet extends React.Component<{
             perspectiveMatrix);
 
         for (let layer of layers) {
+
+            if (layer.decal) {
+                gl.depthMask(false);
+                gl.depthFunc(gl.ALWAYS);
+            } else {
+                gl.depthMask(true);
+                gl.depthFunc(gl.LESS);
+            }
+
             for (let batch of layer.batches) {
                 if (!batch.mesh || batch.instances.length === 0) {continue;}
                 const {verticesOnGPU, indicesOnGPU} = this.requestOnGPU(batch.mesh);

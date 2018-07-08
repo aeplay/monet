@@ -96,6 +96,14 @@ var Monet = /** @class */ (function (_super) {
         gl.uniformMatrix4fv(shader.uniLocs.perspective, false, perspectiveMatrix);
         for (var _i = 0, layers_1 = layers; _i < layers_1.length; _i++) {
             var layer = layers_1[_i];
+            if (layer.decal) {
+                gl.depthMask(false);
+                gl.depthFunc(gl.ALWAYS);
+            }
+            else {
+                gl.depthMask(true);
+                gl.depthFunc(gl.LESS);
+            }
             for (var _c = 0, _d = layer.batches; _c < _d.length; _c++) {
                 var batch = _d[_c];
                 if (!batch.mesh || batch.instances.length === 0) {

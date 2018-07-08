@@ -5,6 +5,7 @@ export interface Mesh {
     indices: Uint32Array;
 }
 export interface LayerSpec {
+    decal?: boolean;
     batches: {
         mesh: Mesh;
         instances: Float32Array;
