@@ -1,13 +1,43 @@
-import React from 'react';
+import * as React from 'react';
 
-export default class Monet extends React.Component {
-    constructor(props) {
-        super(props);
-        this.canvasRef = React.createRef();
-        this.state = {
-        };
-        this.loadedMeshes = new WeakMap();
-    }
+export interface Mesh {
+    vertices: Float32Array,
+    indices: Uint32Array
+}
+
+interface LoadedMesh {
+    verticesOnGPU: WebGLBuffer,
+    indicesOnGPU: WebGLBuffer
+}
+
+interface ShaderInfo {
+    program: WebGLProgram,
+    uniLocs: {[name: string]: WebGLUniformLocation},
+    attrLocs: {[name: string]: number}
+}
+
+export interface LayerSpec {
+    batches: {
+        mesh: Mesh,
+        instances: Float32Array,
+    }[]
+}
+
+export default class Monet extends React.Component<{
+    width: number,
+    height: number,
+    viewMatrix: Float32Array,
+    perspectiveMatrix: Float32Array,
+    layers: LayerSpec[],
+    clearColor: [number, number, number, number]
+}, {glError?: Error|{message: string}}> {
+    private canvasRef: React.RefObject<HTMLCanvasElement> = React.createRef();
+    private loadedMeshes: WeakMap<Mesh, LoadedMesh> = new WeakMap();
+    private gl: WebGLRenderingContext;
+    private instancing: ANGLE_instanced_arrays;
+    private shader: ShaderInfo;
+
+    state: {glError?: Error|{message: string}} = {};
 
     componentDidMount() {
         try { 
@@ -146,7 +176,7 @@ export default class Monet extends React.Component {
         requestAnimationFrame(() => this.renderFrame())
     }
 
-    requestOnGPU(mesh) {
+    private requestOnGPU(mesh) {
         const gl = this.gl;
         const loadedMesh = this.loadedMeshes.get(mesh);
 
