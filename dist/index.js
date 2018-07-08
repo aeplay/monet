@@ -81,9 +81,10 @@ var Monet = /** @class */ (function (_super) {
         var gl = this.gl;
         var instancing = this.instancing;
         var shader = this.shader;
-        var _a = this.props, viewMatrix = _a.viewMatrix, perspectiveMatrix = _a.perspectiveMatrix, layers = _a.layers;
+        var _a = this.props, viewMatrix = _a.viewMatrix, perspectiveMatrix = _a.perspectiveMatrix, layers = _a.layers, width = _a.width, height = _a.height;
         console.log("Frame start");
         var _b = this.props.clearColor, r = _b[0], g = _b[1], b = _b[2], a = _b[3];
+        gl.viewport(0, 0, width, height);
         gl.clearColor(r, g, b, a);
         gl.clearDepth(1.0);
         gl.enable(gl.DEPTH_TEST);
