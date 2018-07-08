@@ -105,11 +105,13 @@ export default class Monet extends React.Component<{
         const instancing = this.instancing;
         const shader = this.shader;
 
-        const {viewMatrix, perspectiveMatrix, layers} = this.props;
+        const {viewMatrix, perspectiveMatrix, layers, width, height} = this.props;
 
         console.log("Frame start");
 
         const [r, g, b, a] = this.props.clearColor;
+
+        gl.viewport(0, 0, width, height);
 
         gl.clearColor(r, g, b, a);
         gl.clearDepth(1.0);
