@@ -74,16 +74,18 @@ var Monet = /** @class */ (function (_super) {
         requestAnimationFrame(function () { return _this.renderFrame(); });
     };
     Monet.prototype.shouldComponentUpdate = function (nextProps) {
-        return this.props.width !== nextProps.width || this.props.height !== nextProps.height;
+        return this.props.width !== nextProps.width || this.props.height !== nextProps.height || this.props.retinaFactor !== nextProps.retinaFactor;
     };
     Monet.prototype.renderFrame = function () {
         var _this = this;
         var gl = this.gl;
         var instancing = this.instancing;
         var shader = this.shader;
-        var _a = this.props, viewMatrix = _a.viewMatrix, perspectiveMatrix = _a.perspectiveMatrix, layers = _a.layers, width = _a.width, height = _a.height;
+        var _a = this.props, viewMatrix = _a.viewMatrix, perspectiveMatrix = _a.perspectiveMatrix, layers = _a.layers, width = _a.width, height = _a.height, retinaFactor = _a.retinaFactor;
+        var actualWidth = width * retinaFactor;
+        var actualHeight = height * retinaFactor;
         var _b = this.props.clearColor, r = _b[0], g = _b[1], b = _b[2], a = _b[3];
-        gl.viewport(0, 0, width, height);
+        gl.viewport(0, 0, actualWidth, actualHeight);
         gl.clearColor(r, g, b, a);
         gl.clearDepth(1.0);
         gl.enable(gl.DEPTH_TEST);
@@ -162,7 +164,12 @@ var Monet = /** @class */ (function (_super) {
             return React.createElement("div", { className: "gl-error" }, ["WebGL error:", this.state.glError.message]);
         }
         else {
-            return React.createElement("canvas", { ref: this.canvasRef, width: this.props.width, height: this.props.height });
+            return React.createElement("canvas", {
+                ref: this.canvasRef,
+                width: this.props.width * this.props.retinaFactor,
+                height: this.props.height * this.props.retinaFactor,
+                style: { width: this.props.width, height: this.props.height }
+            });
         }
     };
     return Monet;

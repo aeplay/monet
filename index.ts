@@ -27,6 +27,7 @@ export interface LayerSpec {
 export default class Monet extends React.Component<{
     width: number,
     height: number,
+    retinaFactor: number,
     viewMatrix: Float32Array,
     perspectiveMatrix: Float32Array,
     layers: LayerSpec[],
@@ -98,7 +99,7 @@ export default class Monet extends React.Component<{
     }
 
     shouldComponentUpdate(nextProps) {
-        return this.props.width !== nextProps.width || this.props.height !== nextProps.height
+        return this.props.width !== nextProps.width || this.props.height !== nextProps.height || this.props.retinaFactor !== nextProps.retinaFactor
     }
 
     renderFrame() {
@@ -106,11 +107,13 @@ export default class Monet extends React.Component<{
         const instancing = this.instancing;
         const shader = this.shader;
 
-        const {viewMatrix, perspectiveMatrix, layers, width, height} = this.props;
+        const {viewMatrix, perspectiveMatrix, layers, width, height, retinaFactor} = this.props;
+        const actualWidth = width * retinaFactor;
+        const actualHeight = height * retinaFactor;
 
         const [r, g, b, a] = this.props.clearColor;
 
-        gl.viewport(0, 0, width, height);
+        gl.viewport(0, 0, actualWidth, actualHeight);
 
         gl.clearColor(r, g, b, a);
         gl.clearDepth(1.0);
@@ -213,7 +216,12 @@ export default class Monet extends React.Component<{
         if (this.state.glError) {
             return React.createElement("div", {className: "gl-error"}, ["WebGL error:", this.state.glError.message]);
         } else {
-            return React.createElement("canvas", { ref: this.canvasRef, width: this.props.width, height: this.props.height });
+            return React.createElement("canvas", {
+                ref: this.canvasRef,
+                width: this.props.width * this.props.retinaFactor,
+                height: this.props.height * this.props.retinaFactor,
+                style: {width: this.props.width, height: this.props.height}
+            });
         }
     }
 }

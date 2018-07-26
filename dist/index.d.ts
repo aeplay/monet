@@ -14,6 +14,7 @@ export interface LayerSpec {
 export default class Monet extends React.Component<{
     width: number;
     height: number;
+    retinaFactor: number;
     viewMatrix: Float32Array;
     perspectiveMatrix: Float32Array;
     layers: LayerSpec[];
@@ -39,9 +40,13 @@ export default class Monet extends React.Component<{
     private requestOnGPU(mesh);
     render(): React.DetailedReactHTMLElement<{
         className: string;
-    }, HTMLElement> | React.ReactElement<{
+    }, HTMLElement> | React.DetailedReactHTMLElement<{
         ref: React.RefObject<HTMLCanvasElement>;
         width: number;
         height: number;
-    }>;
+        style: {
+            width: number;
+            height: number;
+        };
+    }, HTMLCanvasElement>;
 }
