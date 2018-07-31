@@ -94,8 +94,6 @@ export default class Monet extends React.Component<{
                 instanceColor: gl.getAttribLocation(shaderProgram, 'instance_color'),
             },
         };
-
-        requestAnimationFrame(() => this.renderFrame())
     }
 
     shouldComponentUpdate(nextProps) {
@@ -185,8 +183,6 @@ export default class Monet extends React.Component<{
                 );
             }
         }
-
-        requestAnimationFrame(() => this.renderFrame())
     }
 
     private requestOnGPU(mesh) {

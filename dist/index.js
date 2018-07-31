@@ -21,7 +21,6 @@ var Monet = /** @class */ (function (_super) {
         return _this;
     }
     Monet.prototype.componentDidMount = function () {
-        var _this = this;
         try {
             this.gl = this.canvasRef.current.getContext("webgl");
         }
@@ -71,13 +70,11 @@ var Monet = /** @class */ (function (_super) {
                 instanceColor: gl.getAttribLocation(shaderProgram, 'instance_color'),
             },
         };
-        requestAnimationFrame(function () { return _this.renderFrame(); });
     };
     Monet.prototype.shouldComponentUpdate = function (nextProps) {
         return this.props.width !== nextProps.width || this.props.height !== nextProps.height || this.props.retinaFactor !== nextProps.retinaFactor;
     };
     Monet.prototype.renderFrame = function () {
-        var _this = this;
         var gl = this.gl;
         var instancing = this.instancing;
         var shader = this.shader;
@@ -139,7 +136,6 @@ var Monet = /** @class */ (function (_super) {
                 instancing.drawElementsInstancedANGLE(gl.TRIANGLES, batch.mesh.indices.length, gl.UNSIGNED_SHORT, 0, batch.instances.length / 8);
             }
         }
-        requestAnimationFrame(function () { return _this.renderFrame(); });
     };
     Monet.prototype.requestOnGPU = function (mesh) {
         var gl = this.gl;
