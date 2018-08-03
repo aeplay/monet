@@ -35,6 +35,7 @@ export default class Monet extends React.Component<{
 }, {glError?: Error|{message: string}}> {
     private canvasRef: React.RefObject<HTMLCanvasElement> = React.createRef();
     private loadedMeshes: WeakMap<Mesh, LoadedMesh> = new WeakMap();
+    private loadedInstances: WeakMap<Float32Array, WebGLBuffer> = new WeakMap();
     private gl: WebGLRenderingContext;
     private instancing: ANGLE_instanced_arrays;
     private shader: ShaderInfo;
@@ -143,7 +144,7 @@ export default class Monet extends React.Component<{
 
             for (let batch of layer.batches) {
                 if (!batch.mesh || batch.instances.length === 0) {continue;}
-                const {verticesOnGPU, indicesOnGPU} = this.requestOnGPU(batch.mesh);
+                const {verticesOnGPU, indicesOnGPU} = this.requestMeshOnGPU(batch.mesh);
                 if (!verticesOnGPU || !indicesOnGPU) {continue;}
 
                 // set up vertex attributes
@@ -156,9 +157,8 @@ export default class Monet extends React.Component<{
                 gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indicesOnGPU);
 
                 // create instance buffer
-                const instancesOnGPU = gl.createBuffer();
+                const instancesOnGPU = this.requestInstancesOnGPU(batch.instances);
                 gl.bindBuffer(gl.ARRAY_BUFFER, instancesOnGPU);
-                gl.bufferData(gl.ARRAY_BUFFER, batch.instances, gl.STREAM_DRAW);
 
                 // set up instance attributes
                 // layout: {position: [f32; 3], direction: [f32; 2], color: [f32; 3]}
@@ -185,7 +185,7 @@ export default class Monet extends React.Component<{
         }
     }
 
-    private requestOnGPU(mesh) {
+    private requestMeshOnGPU(mesh) {
         const gl = this.gl;
         const loadedMesh = this.loadedMeshes.get(mesh);
 
@@ -205,6 +205,23 @@ export default class Monet extends React.Component<{
             return newLoadedMesh;
         } else {
             return loadedMesh;
+        }
+    }
+
+    private requestInstancesOnGPU(instances) {
+        const gl = this.gl;
+        const loadedInstances = this.loadedInstances.get(instances);
+
+        if (!loadedInstances) {
+            const newLoadedInstances = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, newLoadedInstances);
+            gl.bufferData(gl.ARRAY_BUFFER, instances, gl.STREAM_DRAW);
+
+            this.loadedInstances.set(instances, newLoadedInstances);
+
+            return newLoadedInstances;
+        } else {
+            return loadedInstances;
         }
     }
 

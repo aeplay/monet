@@ -26,6 +26,7 @@ export default class Monet extends React.Component<{
 }> {
     private canvasRef;
     private loadedMeshes;
+    private loadedInstances;
     private gl;
     private instancing;
     private shader;
@@ -37,7 +38,8 @@ export default class Monet extends React.Component<{
     componentDidMount(): any;
     shouldComponentUpdate(nextProps: any): boolean;
     renderFrame(): void;
-    private requestOnGPU(mesh);
+    private requestMeshOnGPU(mesh);
+    private requestInstancesOnGPU(instances);
     render(): React.DetailedReactHTMLElement<{
         className: string;
     }, HTMLElement> | React.DetailedReactHTMLElement<{

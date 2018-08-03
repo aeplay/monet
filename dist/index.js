@@ -17,6 +17,7 @@ var Monet = /** @class */ (function (_super) {
         var _this = _super !== null && _super.apply(this, arguments) || this;
         _this.canvasRef = React.createRef();
         _this.loadedMeshes = new WeakMap();
+        _this.loadedInstances = new WeakMap();
         _this.state = {};
         return _this;
     }
@@ -107,7 +108,7 @@ var Monet = /** @class */ (function (_super) {
                 if (!batch.mesh || batch.instances.length === 0) {
                     continue;
                 }
-                var _e = this.requestOnGPU(batch.mesh), verticesOnGPU = _e.verticesOnGPU, indicesOnGPU = _e.indicesOnGPU;
+                var _e = this.requestMeshOnGPU(batch.mesh), verticesOnGPU = _e.verticesOnGPU, indicesOnGPU = _e.indicesOnGPU;
                 if (!verticesOnGPU || !indicesOnGPU) {
                     continue;
                 }
@@ -119,9 +120,8 @@ var Monet = /** @class */ (function (_super) {
                 // set up index array
                 gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indicesOnGPU);
                 // create instance buffer
-                var instancesOnGPU = gl.createBuffer();
+                var instancesOnGPU = this.requestInstancesOnGPU(batch.instances);
                 gl.bindBuffer(gl.ARRAY_BUFFER, instancesOnGPU);
-                gl.bufferData(gl.ARRAY_BUFFER, batch.instances, gl.STREAM_DRAW);
                 // set up instance attributes
                 // layout: {position: [f32; 3], direction: [f32; 2], color: [f32; 3]}
                 gl.vertexAttribPointer(shader.attrLocs.instancePosition, 3, gl.FLOAT, false, 8 * 4, 0);
@@ -137,7 +137,7 @@ var Monet = /** @class */ (function (_super) {
             }
         }
     };
-    Monet.prototype.requestOnGPU = function (mesh) {
+    Monet.prototype.requestMeshOnGPU = function (mesh) {
         var gl = this.gl;
         var loadedMesh = this.loadedMeshes.get(mesh);
         if (!loadedMesh) {
@@ -153,6 +153,20 @@ var Monet = /** @class */ (function (_super) {
         }
         else {
             return loadedMesh;
+        }
+    };
+    Monet.prototype.requestInstancesOnGPU = function (instances) {
+        var gl = this.gl;
+        var loadedInstances = this.loadedInstances.get(instances);
+        if (!loadedInstances) {
+            var newLoadedInstances = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, newLoadedInstances);
+            gl.bufferData(gl.ARRAY_BUFFER, instances, gl.STREAM_DRAW);
+            this.loadedInstances.set(instances, newLoadedInstances);
+            return newLoadedInstances;
+        }
+        else {
+            return loadedInstances;
         }
     };
     Monet.prototype.render = function () {
