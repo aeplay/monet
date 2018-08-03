@@ -121,7 +121,7 @@ var Monet = /** @class */ (function (_super) {
                 // create instance buffer
                 var instancesOnGPU = gl.createBuffer();
                 gl.bindBuffer(gl.ARRAY_BUFFER, instancesOnGPU);
-                gl.bufferData(gl.ARRAY_BUFFER, batch.instances, gl.STATIC_DRAW);
+                gl.bufferData(gl.ARRAY_BUFFER, batch.instances, gl.STREAM_DRAW);
                 // set up instance attributes
                 // layout: {position: [f32; 3], direction: [f32; 2], color: [f32; 3]}
                 gl.vertexAttribPointer(shader.attrLocs.instancePosition, 3, gl.FLOAT, false, 8 * 4, 0);
@@ -143,10 +143,10 @@ var Monet = /** @class */ (function (_super) {
         if (!loadedMesh) {
             var verticesOnGPU = gl.createBuffer();
             gl.bindBuffer(gl.ARRAY_BUFFER, verticesOnGPU);
-            gl.bufferData(gl.ARRAY_BUFFER, mesh.vertices, gl.STATIC_DRAW);
+            gl.bufferData(gl.ARRAY_BUFFER, mesh.vertices, gl.STREAM_DRAW);
             var indicesOnGPU = gl.createBuffer();
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indicesOnGPU);
-            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, mesh.indices, gl.STATIC_DRAW);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, mesh.indices, gl.STREAM_DRAW);
             var newLoadedMesh = { verticesOnGPU: verticesOnGPU, indicesOnGPU: indicesOnGPU };
             this.loadedMeshes.set(mesh, newLoadedMesh);
             return newLoadedMesh;

@@ -158,7 +158,7 @@ export default class Monet extends React.Component<{
                 // create instance buffer
                 const instancesOnGPU = gl.createBuffer();
                 gl.bindBuffer(gl.ARRAY_BUFFER, instancesOnGPU);
-                gl.bufferData(gl.ARRAY_BUFFER, batch.instances, gl.STATIC_DRAW);
+                gl.bufferData(gl.ARRAY_BUFFER, batch.instances, gl.STREAM_DRAW);
 
                 // set up instance attributes
                 // layout: {position: [f32; 3], direction: [f32; 2], color: [f32; 3]}
@@ -192,11 +192,11 @@ export default class Monet extends React.Component<{
         if (!loadedMesh) {
             const verticesOnGPU = gl.createBuffer();
             gl.bindBuffer(gl.ARRAY_BUFFER, verticesOnGPU);
-            gl.bufferData(gl.ARRAY_BUFFER, mesh.vertices, gl.STATIC_DRAW);
+            gl.bufferData(gl.ARRAY_BUFFER, mesh.vertices, gl.STREAM_DRAW);
 
             const indicesOnGPU = gl.createBuffer();
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indicesOnGPU);
-            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, mesh.indices, gl.STATIC_DRAW);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, mesh.indices, gl.STREAM_DRAW);
 
             const newLoadedMesh = {verticesOnGPU, indicesOnGPU};
 
