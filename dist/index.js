@@ -18,6 +18,7 @@ var Monet = /** @class */ (function (_super) {
         _this.canvasRef = React.createRef();
         _this.loadedMeshes = new WeakMap();
         _this.loadedInstances = new WeakMap();
+        _this.loadedShaders = new WeakMap();
         _this.state = {};
         return _this;
     }
@@ -34,43 +35,6 @@ var Monet = /** @class */ (function (_super) {
         catch (ex) {
             this.setState({ glError: ex });
         }
-        var gl = this.gl;
-        var vertexShader = gl.createShader(gl.VERTEX_SHADER);
-        gl.shaderSource(vertexShader, solidVertexShader);
-        gl.compileShader(vertexShader);
-        if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
-            this.setState({ glError: { message: "Error compiling vertex shader: " + gl.getShaderInfoLog(vertexShader) } });
-            return null;
-        }
-        var fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-        gl.shaderSource(fragmentShader, solidFragmentShader);
-        gl.compileShader(fragmentShader);
-        if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
-            this.setState({ glError: { message: "Error compiling vertex shader: " + gl.getShaderInfoLog(fragmentShader) } });
-            return null;
-        }
-        var shaderProgram = gl.createProgram();
-        gl.attachShader(shaderProgram, vertexShader);
-        gl.attachShader(shaderProgram, fragmentShader);
-        gl.linkProgram(shaderProgram);
-        if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
-            this.setState({ glError: { message: "Could not link shader program." } });
-            return null;
-        }
-        gl.useProgram(shaderProgram);
-        this.shader = {
-            program: shaderProgram,
-            uniLocs: {
-                view: gl.getUniformLocation(shaderProgram, 'view'),
-                perspective: gl.getUniformLocation(shaderProgram, 'perspective'),
-            },
-            attrLocs: {
-                position: gl.getAttribLocation(shaderProgram, 'position'),
-                instancePosition: gl.getAttribLocation(shaderProgram, 'instance_position'),
-                instanceDirection: gl.getAttribLocation(shaderProgram, 'instance_direction'),
-                instanceColor: gl.getAttribLocation(shaderProgram, 'instance_color'),
-            },
-        };
     };
     Monet.prototype.shouldComponentUpdate = function (nextProps) {
         return this.props.width !== nextProps.width || this.props.height !== nextProps.height || this.props.retinaFactor !== nextProps.retinaFactor;
@@ -78,7 +42,6 @@ var Monet = /** @class */ (function (_super) {
     Monet.prototype.renderFrame = function () {
         var gl = this.gl;
         var instancing = this.instancing;
-        var shader = this.shader;
         var _a = this.props, viewMatrix = _a.viewMatrix, perspectiveMatrix = _a.perspectiveMatrix, layers = _a.layers, width = _a.width, height = _a.height, retinaFactor = _a.retinaFactor;
         var actualWidth = width * retinaFactor;
         var actualHeight = height * retinaFactor;
@@ -89,12 +52,17 @@ var Monet = /** @class */ (function (_super) {
         gl.enable(gl.DEPTH_TEST);
         gl.depthFunc(gl.LEQUAL);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-        gl.useProgram(shader.program);
-        // setting up uniforms
-        gl.uniformMatrix4fv(shader.uniLocs.view, false, viewMatrix);
-        gl.uniformMatrix4fv(shader.uniLocs.perspective, false, perspectiveMatrix);
+        var previousShader = null;
         for (var _i = 0, layers_1 = layers; _i < layers_1.length; _i++) {
             var layer = layers_1[_i];
+            var shaderOnGPU = this.requestShaderOnGPU(layer.shader || exports.solidColorShader);
+            if (shaderOnGPU != previousShader) {
+                gl.useProgram(shaderOnGPU.program);
+                // setting up uniforms
+                gl.uniformMatrix4fv(shaderOnGPU.uniLocs.view, false, viewMatrix);
+                gl.uniformMatrix4fv(shaderOnGPU.uniLocs.perspective, false, perspectiveMatrix);
+                previousShader = shaderOnGPU;
+            }
             if (layer.decal) {
                 gl.depthMask(false);
                 gl.depthFunc(gl.ALWAYS);
@@ -114,9 +82,9 @@ var Monet = /** @class */ (function (_super) {
                 }
                 // set up vertex attributes
                 gl.bindBuffer(gl.ARRAY_BUFFER, verticesOnGPU);
-                gl.vertexAttribPointer(shader.attrLocs.position, 3, gl.FLOAT, false, 0, 0);
-                gl.enableVertexAttribArray(shader.attrLocs.position);
-                instancing.vertexAttribDivisorANGLE(shader.attrLocs.position, 0);
+                gl.vertexAttribPointer(shaderOnGPU.attrLocs.position, 3, gl.FLOAT, false, 0, 0);
+                gl.enableVertexAttribArray(shaderOnGPU.attrLocs.position);
+                instancing.vertexAttribDivisorANGLE(shaderOnGPU.attrLocs.position, 0);
                 // set up index array
                 gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indicesOnGPU);
                 // create instance buffer
@@ -124,17 +92,64 @@ var Monet = /** @class */ (function (_super) {
                 gl.bindBuffer(gl.ARRAY_BUFFER, instancesOnGPU);
                 // set up instance attributes
                 // layout: {position: [f32; 3], direction: [f32; 2], color: [f32; 3]}
-                gl.vertexAttribPointer(shader.attrLocs.instancePosition, 3, gl.FLOAT, false, 8 * 4, 0);
-                gl.enableVertexAttribArray(shader.attrLocs.instancePosition);
-                instancing.vertexAttribDivisorANGLE(shader.attrLocs.instancePosition, 1);
-                gl.vertexAttribPointer(shader.attrLocs.instanceDirection, 2, gl.FLOAT, false, 8 * 4, 3 * 4);
-                gl.enableVertexAttribArray(shader.attrLocs.instanceDirection);
-                instancing.vertexAttribDivisorANGLE(shader.attrLocs.instanceDirection, 1);
-                gl.vertexAttribPointer(shader.attrLocs.instanceColor, 3, gl.FLOAT, false, 8 * 4, 5 * 4);
-                gl.enableVertexAttribArray(shader.attrLocs.instanceColor);
-                instancing.vertexAttribDivisorANGLE(shader.attrLocs.instanceColor, 1);
+                gl.vertexAttribPointer(shaderOnGPU.attrLocs.instancePosition, 3, gl.FLOAT, false, 8 * 4, 0);
+                gl.enableVertexAttribArray(shaderOnGPU.attrLocs.instancePosition);
+                instancing.vertexAttribDivisorANGLE(shaderOnGPU.attrLocs.instancePosition, 1);
+                gl.vertexAttribPointer(shaderOnGPU.attrLocs.instanceDirection, 2, gl.FLOAT, false, 8 * 4, 3 * 4);
+                gl.enableVertexAttribArray(shaderOnGPU.attrLocs.instanceDirection);
+                instancing.vertexAttribDivisorANGLE(shaderOnGPU.attrLocs.instanceDirection, 1);
+                gl.vertexAttribPointer(shaderOnGPU.attrLocs.instanceColor, 3, gl.FLOAT, false, 8 * 4, 5 * 4);
+                gl.enableVertexAttribArray(shaderOnGPU.attrLocs.instanceColor);
+                instancing.vertexAttribDivisorANGLE(shaderOnGPU.attrLocs.instanceColor, 1);
                 instancing.drawElementsInstancedANGLE(gl.TRIANGLES, batch.mesh.indices.length, gl.UNSIGNED_SHORT, 0, batch.instances.length / 8);
             }
+        }
+    };
+    Monet.prototype.requestShaderOnGPU = function (shaderSource) {
+        var loadedShader = this.loadedShaders.get(shaderSource);
+        if (!loadedShader) {
+            var gl = this.gl;
+            var vertexShader = gl.createShader(gl.VERTEX_SHADER);
+            gl.shaderSource(vertexShader, shaderSource.vertex);
+            gl.compileShader(vertexShader);
+            if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
+                this.setState({ glError: { message: "Error compiling vertex shader: " + gl.getShaderInfoLog(vertexShader) } });
+                return null;
+            }
+            var fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+            gl.shaderSource(fragmentShader, shaderSource.fragment);
+            gl.compileShader(fragmentShader);
+            if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
+                this.setState({ glError: { message: "Error compiling vertex shader: " + gl.getShaderInfoLog(fragmentShader) } });
+                return null;
+            }
+            var shaderProgram = gl.createProgram();
+            gl.attachShader(shaderProgram, vertexShader);
+            gl.attachShader(shaderProgram, fragmentShader);
+            gl.linkProgram(shaderProgram);
+            if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+                this.setState({ glError: { message: "Could not link shader program." } });
+                return null;
+            }
+            gl.useProgram(shaderProgram);
+            var newLoadedShader = {
+                program: shaderProgram,
+                uniLocs: {
+                    view: gl.getUniformLocation(shaderProgram, 'view'),
+                    perspective: gl.getUniformLocation(shaderProgram, 'perspective'),
+                },
+                attrLocs: {
+                    position: gl.getAttribLocation(shaderProgram, 'position'),
+                    instancePosition: gl.getAttribLocation(shaderProgram, 'instance_position'),
+                    instanceDirection: gl.getAttribLocation(shaderProgram, 'instance_direction'),
+                    instanceColor: gl.getAttribLocation(shaderProgram, 'instance_color'),
+                },
+            };
+            this.loadedShaders.set(shaderSource, newLoadedShader);
+            return newLoadedShader;
+        }
+        else {
+            return loadedShader;
         }
     };
     Monet.prototype.requestMeshOnGPU = function (mesh) {
@@ -185,5 +200,7 @@ var Monet = /** @class */ (function (_super) {
     return Monet;
 }(React.Component));
 exports.default = Monet;
-var solidVertexShader = "\nprecision mediump float;\nuniform mat4 view;\nuniform mat4 perspective;\nattribute vec3 position;\nattribute vec3 instance_position;\nattribute vec2 instance_direction;\nattribute vec3 instance_color;\nvarying vec3 p;\nvarying vec3 color;\n\nvoid main() {\n    mat4 model = mat4(1.0); // unit diagonal\n    mat4 modelview = view * model;\n    vec2 orth_instance_direction = vec2(-instance_direction.y, instance_direction.x);\n    vec3 rotated_position = vec3(position.x * instance_direction + position.y * orth_instance_direction, position.z);\n    gl_Position = perspective * modelview * vec4(rotated_position + instance_position, 1.0);\n    p = position;\n    color = instance_color;\n}";
-var solidFragmentShader = "\nprecision mediump float;\nvarying vec3 p;\nvarying vec3 color;\nvoid main() {\n    gl_FragColor = vec4(pow(color, vec3(1.0/2.2)), 1.0);\n}";
+exports.solidColorShader = {
+    vertex: "\nprecision mediump float;\nuniform mat4 view;\nuniform mat4 perspective;\nattribute vec3 position;\nattribute vec3 instance_position;\nattribute vec2 instance_direction;\nattribute vec3 instance_color;\nvarying vec3 p;\nvarying vec3 color;\n\nvoid main() {\n    mat4 model = mat4(1.0); // unit diagonal\n    mat4 modelview = view * model;\n    vec2 orth_instance_direction = vec2(-instance_direction.y, instance_direction.x);\n    vec3 rotated_position = vec3(position.x * instance_direction + position.y * orth_instance_direction, position.z);\n    gl_Position = perspective * modelview * vec4(rotated_position + instance_position, 1.0);\n    p = position;\n    color = instance_color;\n}",
+    fragment: "\nprecision mediump float;\nvarying vec3 p;\nvarying vec3 color;\nvoid main() {\n    gl_FragColor = vec4(pow(color, vec3(1.0/2.2)), 1.0);\n}"
+};

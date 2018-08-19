@@ -10,6 +10,11 @@ interface LoadedMesh {
     indicesOnGPU: WebGLBuffer
 }
 
+export interface ShaderSource {
+    fragment: string,
+    vertex: string,
+}
+
 interface ShaderInfo {
     program: WebGLProgram,
     uniLocs: {[name: string]: WebGLUniformLocation},
@@ -18,6 +23,7 @@ interface ShaderInfo {
 
 export interface LayerSpec {
     decal?: boolean,
+    shader?: ShaderSource,
     batches: {
         mesh: Mesh,
         instances: Float32Array,
@@ -36,9 +42,9 @@ export default class Monet extends React.Component<{
     private canvasRef: React.RefObject<HTMLCanvasElement> = React.createRef();
     private loadedMeshes: WeakMap<Mesh, LoadedMesh> = new WeakMap();
     private loadedInstances: WeakMap<Float32Array, WebGLBuffer> = new WeakMap();
+    private loadedShaders: WeakMap<ShaderSource, ShaderInfo> = new WeakMap();
     private gl: WebGLRenderingContext;
     private instancing: ANGLE_instanced_arrays;
-    private shader: ShaderInfo;
 
     state: {glError?: Error|{message: string}} = {};
 
@@ -53,48 +59,6 @@ export default class Monet extends React.Component<{
         } catch (ex) {
             this.setState({glError: ex})
         }
-        const gl = this.gl;
-
-        const vertexShader = gl.createShader(gl.VERTEX_SHADER);
-        gl.shaderSource(vertexShader, solidVertexShader);
-        gl.compileShader(vertexShader);
-        if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
-            this.setState({glError: {message: "Error compiling vertex shader: " + gl.getShaderInfoLog(vertexShader)}})
-            return null;
-        }
-
-        const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-        gl.shaderSource(fragmentShader, solidFragmentShader);
-        gl.compileShader(fragmentShader);
-        if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
-            this.setState({glError: {message: "Error compiling vertex shader: " + gl.getShaderInfoLog(fragmentShader)}})
-            return null;
-        }
-
-        const shaderProgram = gl.createProgram();
-        gl.attachShader(shaderProgram, vertexShader);
-        gl.attachShader(shaderProgram, fragmentShader);
-        gl.linkProgram(shaderProgram);
-        if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
-            this.setState({glError: {message: "Could not link shader program."}});
-            return null
-        }
-
-        gl.useProgram(shaderProgram);
-
-        this.shader = {
-            program: shaderProgram,
-            uniLocs: {
-                view: gl.getUniformLocation(shaderProgram, 'view'),
-                perspective: gl.getUniformLocation(shaderProgram, 'perspective'),
-            },
-            attrLocs: {
-                position: gl.getAttribLocation(shaderProgram, 'position'),
-                instancePosition: gl.getAttribLocation(shaderProgram, 'instance_position'),
-                instanceDirection: gl.getAttribLocation(shaderProgram, 'instance_direction'),
-                instanceColor: gl.getAttribLocation(shaderProgram, 'instance_color'),
-            },
-        };
     }
 
     shouldComponentUpdate(nextProps) {
@@ -104,7 +68,6 @@ export default class Monet extends React.Component<{
     renderFrame() {
         const gl = this.gl;
         const instancing = this.instancing;
-        const shader = this.shader;
 
         const {viewMatrix, perspectiveMatrix, layers, width, height, retinaFactor} = this.props;
         const actualWidth = width * retinaFactor;
@@ -120,19 +83,26 @@ export default class Monet extends React.Component<{
         gl.depthFunc(gl.LEQUAL);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-        gl.useProgram(shader.program);
-
-        // setting up uniforms
-        gl.uniformMatrix4fv(
-            shader.uniLocs.view,
-            false,
-            viewMatrix);
-        gl.uniformMatrix4fv(
-            shader.uniLocs.perspective,
-            false,
-            perspectiveMatrix);
+        let previousShader = null;
 
         for (let layer of layers) {
+            let shaderOnGPU = this.requestShaderOnGPU(layer.shader || solidColorShader);
+
+            if (shaderOnGPU != previousShader) {
+                gl.useProgram(shaderOnGPU.program);
+    
+                // setting up uniforms
+                gl.uniformMatrix4fv(
+                    shaderOnGPU.uniLocs.view,
+                    false,
+                    viewMatrix);
+                gl.uniformMatrix4fv(
+                    shaderOnGPU.uniLocs.perspective,
+                    false,
+                    perspectiveMatrix);
+
+                previousShader = shaderOnGPU;
+            }
 
             if (layer.decal) {
                 gl.depthMask(false);
@@ -149,9 +119,9 @@ export default class Monet extends React.Component<{
 
                 // set up vertex attributes
                 gl.bindBuffer(gl.ARRAY_BUFFER, verticesOnGPU);
-                gl.vertexAttribPointer(shader.attrLocs.position, 3, gl.FLOAT, false, 0, 0);
-                gl.enableVertexAttribArray(shader.attrLocs.position);
-                instancing.vertexAttribDivisorANGLE(shader.attrLocs.position, 0);
+                gl.vertexAttribPointer(shaderOnGPU.attrLocs.position, 3, gl.FLOAT, false, 0, 0);
+                gl.enableVertexAttribArray(shaderOnGPU.attrLocs.position);
+                instancing.vertexAttribDivisorANGLE(shaderOnGPU.attrLocs.position, 0);
 
                 // set up index array
                 gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indicesOnGPU);
@@ -162,17 +132,17 @@ export default class Monet extends React.Component<{
 
                 // set up instance attributes
                 // layout: {position: [f32; 3], direction: [f32; 2], color: [f32; 3]}
-                gl.vertexAttribPointer(shader.attrLocs.instancePosition, 3, gl.FLOAT, false, 8 * 4, 0);
-                gl.enableVertexAttribArray(shader.attrLocs.instancePosition);
-                instancing.vertexAttribDivisorANGLE(shader.attrLocs.instancePosition, 1);
+                gl.vertexAttribPointer(shaderOnGPU.attrLocs.instancePosition, 3, gl.FLOAT, false, 8 * 4, 0);
+                gl.enableVertexAttribArray(shaderOnGPU.attrLocs.instancePosition);
+                instancing.vertexAttribDivisorANGLE(shaderOnGPU.attrLocs.instancePosition, 1);
 
-                gl.vertexAttribPointer(shader.attrLocs.instanceDirection, 2, gl.FLOAT, false, 8 * 4, 3 * 4);
-                gl.enableVertexAttribArray(shader.attrLocs.instanceDirection);
-                instancing.vertexAttribDivisorANGLE(shader.attrLocs.instanceDirection, 1);
+                gl.vertexAttribPointer(shaderOnGPU.attrLocs.instanceDirection, 2, gl.FLOAT, false, 8 * 4, 3 * 4);
+                gl.enableVertexAttribArray(shaderOnGPU.attrLocs.instanceDirection);
+                instancing.vertexAttribDivisorANGLE(shaderOnGPU.attrLocs.instanceDirection, 1);
 
-                gl.vertexAttribPointer(shader.attrLocs.instanceColor, 3, gl.FLOAT, false, 8 * 4, 5 * 4);
-                gl.enableVertexAttribArray(shader.attrLocs.instanceColor);
-                instancing.vertexAttribDivisorANGLE(shader.attrLocs.instanceColor, 1);
+                gl.vertexAttribPointer(shaderOnGPU.attrLocs.instanceColor, 3, gl.FLOAT, false, 8 * 4, 5 * 4);
+                gl.enableVertexAttribArray(shaderOnGPU.attrLocs.instanceColor);
+                instancing.vertexAttribDivisorANGLE(shaderOnGPU.attrLocs.instanceColor, 1);
 
                 instancing.drawElementsInstancedANGLE(
                     gl.TRIANGLES,
@@ -182,6 +152,61 @@ export default class Monet extends React.Component<{
                     batch.instances.length / 8
                 );
             }
+        }
+    }
+
+    private requestShaderOnGPU(shaderSource) {
+        const loadedShader = this.loadedShaders.get(shaderSource);
+
+        if (!loadedShader) {
+            const gl = this.gl;
+    
+            const vertexShader = gl.createShader(gl.VERTEX_SHADER);
+            gl.shaderSource(vertexShader, shaderSource.vertex);
+            gl.compileShader(vertexShader);
+            if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
+                this.setState({glError: {message: "Error compiling vertex shader: " + gl.getShaderInfoLog(vertexShader)}})
+                return null;
+            }
+    
+            const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+            gl.shaderSource(fragmentShader, shaderSource.fragment);
+            gl.compileShader(fragmentShader);
+            if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
+                this.setState({glError: {message: "Error compiling vertex shader: " + gl.getShaderInfoLog(fragmentShader)}})
+                return null;
+            }
+    
+            const shaderProgram = gl.createProgram();
+            gl.attachShader(shaderProgram, vertexShader);
+            gl.attachShader(shaderProgram, fragmentShader);
+            gl.linkProgram(shaderProgram);
+            if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+                this.setState({glError: {message: "Could not link shader program."}});
+                return null
+            }
+    
+            gl.useProgram(shaderProgram);
+    
+            const newLoadedShader = {
+                program: shaderProgram,
+                uniLocs: {
+                    view: gl.getUniformLocation(shaderProgram, 'view'),
+                    perspective: gl.getUniformLocation(shaderProgram, 'perspective'),
+                },
+                attrLocs: {
+                    position: gl.getAttribLocation(shaderProgram, 'position'),
+                    instancePosition: gl.getAttribLocation(shaderProgram, 'instance_position'),
+                    instanceDirection: gl.getAttribLocation(shaderProgram, 'instance_direction'),
+                    instanceColor: gl.getAttribLocation(shaderProgram, 'instance_color'),
+                },
+            };
+
+            this.loadedShaders.set(shaderSource, newLoadedShader);
+
+            return newLoadedShader;
+        } else {
+            return loadedShader;
         }
     }
 
@@ -239,7 +264,8 @@ export default class Monet extends React.Component<{
     }
 }
 
-const solidVertexShader = `
+export const solidColorShader = {
+    vertex: `
 precision mediump float;
 uniform mat4 view;
 uniform mat4 perspective;
@@ -258,12 +284,12 @@ void main() {
     gl_Position = perspective * modelview * vec4(rotated_position + instance_position, 1.0);
     p = position;
     color = instance_color;
-}`;
-
-const solidFragmentShader = `
+}`,
+    fragment: `
 precision mediump float;
 varying vec3 p;
 varying vec3 color;
 void main() {
     gl_FragColor = vec4(pow(color, vec3(1.0/2.2)), 1.0);
-}`;
+}`
+};

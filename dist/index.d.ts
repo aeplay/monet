@@ -4,8 +4,13 @@ export interface Mesh {
     vertices: Float32Array;
     indices: Uint32Array;
 }
+export interface ShaderSource {
+    fragment: string;
+    vertex: string;
+}
 export interface LayerSpec {
     decal?: boolean;
+    shader?: ShaderSource;
     batches: {
         mesh: Mesh;
         instances: Float32Array;
@@ -27,17 +32,18 @@ export default class Monet extends React.Component<{
     private canvasRef;
     private loadedMeshes;
     private loadedInstances;
+    private loadedShaders;
     private gl;
     private instancing;
-    private shader;
     state: {
         glError?: Error | {
             message: string;
         };
     };
-    componentDidMount(): any;
+    componentDidMount(): void;
     shouldComponentUpdate(nextProps: any): boolean;
     renderFrame(): void;
+    private requestShaderOnGPU(shaderSource);
     private requestMeshOnGPU(mesh);
     private requestInstancesOnGPU(instances);
     render(): React.DetailedReactHTMLElement<{
@@ -52,3 +58,7 @@ export default class Monet extends React.Component<{
         };
     }, HTMLCanvasElement>;
 }
+export declare const solidColorShader: {
+    vertex: string;
+    fragment: string;
+};
