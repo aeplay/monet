@@ -121,7 +121,7 @@ var Monet = /** @class */ (function (_super) {
             gl.shaderSource(fragmentShader, shaderSource.fragment);
             gl.compileShader(fragmentShader);
             if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
-                this.setState({ glError: { message: "Error compiling vertex shader: " + gl.getShaderInfoLog(fragmentShader) } });
+                this.setState({ glError: { message: "Error compiling fragment shader: " + gl.getShaderInfoLog(fragmentShader) } });
                 return null;
             }
             var shaderProgram = gl.createProgram();
