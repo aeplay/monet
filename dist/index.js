@@ -36,8 +36,9 @@ var Monet = /** @class */ (function (_super) {
             this.setState({ glError: ex });
         }
     };
-    Monet.prototype.shouldComponentUpdate = function (nextProps) {
-        return this.props.width !== nextProps.width || this.props.height !== nextProps.height || this.props.retinaFactor !== nextProps.retinaFactor;
+    Monet.prototype.shouldComponentUpdate = function (nextProps, nextState) {
+        return this.props.width !== nextProps.width || this.props.height !== nextProps.height
+            || this.props.retinaFactor !== nextProps.retinaFactor || this.state.glError !== nextState.glError;
     };
     Monet.prototype.renderFrame = function () {
         var gl = this.gl;

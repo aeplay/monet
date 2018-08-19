@@ -41,7 +41,7 @@ export default class Monet extends React.Component<{
         };
     };
     componentDidMount(): void;
-    shouldComponentUpdate(nextProps: any): boolean;
+    shouldComponentUpdate(nextProps: any, nextState: any): boolean;
     renderFrame(): void;
     private requestShaderOnGPU(shaderSource);
     private requestMeshOnGPU(mesh);

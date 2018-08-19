@@ -61,8 +61,9 @@ export default class Monet extends React.Component<{
         }
     }
 
-    shouldComponentUpdate(nextProps) {
-        return this.props.width !== nextProps.width || this.props.height !== nextProps.height || this.props.retinaFactor !== nextProps.retinaFactor
+    shouldComponentUpdate(nextProps, nextState) {
+        return this.props.width !== nextProps.width || this.props.height !== nextProps.height
+            || this.props.retinaFactor !== nextProps.retinaFactor || this.state.glError !== nextState.glError
     }
 
     renderFrame() {
