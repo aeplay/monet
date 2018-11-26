@@ -24,6 +24,7 @@ interface ShaderInfo {
 export interface LayerSpec {
     decal?: boolean,
     shader?: ShaderSource,
+    renderOrder: number,
     batches: {
         mesh: Mesh,
         instances: Float32Array,
@@ -85,6 +86,8 @@ export default class Monet extends React.Component<{
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
         let previousShader = null;
+
+        layers.sort((a, b) => a.renderOrder - b.renderOrder)
 
         for (let layer of layers) {
             let shaderOnGPU = this.requestShaderOnGPU(layer.shader || solidColorShader);
